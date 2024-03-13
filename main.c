@@ -137,9 +137,8 @@ functionality.
 /* Standard includes. */
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include "stm32f4_discovery.h"
+
 /* Kernel includes. */
 #include "stm32f4xx.h"
 #include "../FreeRTOS_Source/include/FreeRTOS.h"
@@ -149,138 +148,252 @@ functionality.
 #include "../FreeRTOS_Source/include/timers.h"
 
 
-void create_dd_task(TaskHandle_t t_handle,
-					task_type type,
-					uint_32_t task_id,
-					uint_32_t absolute_deadline,
-					);
-
-void delete_dd_task(uint_32_t task_id);
-
-**dd_task_list get_active_dd_task_list(void);
-**dd_task_list get_complete_dd_task_list(void);
-**dd_task_list get_overdue_dd_task_list(void);
-
-
 
 /*-----------------------------------------------------------*/
 #define mainQUEUE_LENGTH 100
+//void create_dd_task( TaskHandle_t t_handle, task_type type, uint32_t task_id, uint32_t absolute_deadline,);
+//void delete_dd_task(uint32_t task_id);
+//**dd_task_list get_active_dd_task_list(void);
+//**dd_task_list get_complete_dd_task_list(void);
+//**dd_task_list get_overdue_dd_task_list(void);
 
+/*
+ * TODO: Implement this function for any hardware specific clock configuration
+ * that was not already performed before main() was called.
+ */
 static void prvSetupHardware( void );
 
 /*
  * The queue send and receive tasks as described in the comments at the top of
  * this file.
  */
-
+//static void Manager_Task( void *pvParameters );
+//static void Blue_LED_Controller_Task( void *pvParameters );
+//static void Green_LED_Controller_Task( void *pvParameters );
+//static void Red_LED_Controller_Task( void *pvParameters );
+//static void Amber_LED_Controller_Task( void *pvParameters );
+//static void TrafficFlowAdjustmentTask(void *params);
+//static void TrafficCreatorTask(void *params);
+//static void TrafficLightTask(void *params);
+//static void TrafficDisplayTask(void *params);
+//uint16_t getADCValue(void);
+//void myADC_Init();
+//void myGPIO_Init();
 
 xQueueHandle xQueue_handle = 0;
+xQueueHandle xQueue_TrafficFlow = 0;
+xQueueHandle xQueue_Light = 0;
+xQueueHandle xQueue_TrafficGeneration = 0;
 
-
-
-struct overdue_tasks{
-	TaskHandle_t t_handle;
-	uint_32 deadline;
-	uint_32 task_type;
-	uint_32 creation_time;
-	struct_overdue_tasks *next_cell;
-	overdue_tasks *previous_cell;
-};
-
-struct dd_task{
-	TaskHandle_t t_handle;
-	task_type type;
-	uint_32 task_id;
-	uint_32 release_time;
-	uint_32 absolute_deadline;
-	uint_32 completion_time;
-};
-/*
- * This structure contains the task handle of the corresponding User-Defined Task along with relevant information for performing
- * EDF calculations. A DD-Task’s type is also stored since it may be periodic or aperiodic. A task identification
- * number is given to allow the DDS to easily identify the DD-Task when performing its various functions.
- */
-
-
-struct dd_task_list{
-	dd_task task;
-	struct dd_task_list *next_task;
-
-};
 
 /*-----------------------------------------------------------*/
+enum task_type {PERIODIC,APERIODIC};
+//#define task_type {PERIODIC, APERIODIC};
 
+struct task_list {
+ TaskHandle_t t_handle;
+ uint32_t deadline;
+ uint32_t task_type;
+ uint32_t creation_time;
+ struct task_list *next_cell;
+ struct task_list *previous_cell;
+};
+
+struct overdue_tasks {
+TaskHandle_t tid;
+uint32_t deadline;
+uint32_t task_type;
+uint32_t creation_time;
+struct overdue_tasks *next_cell; struct
+overdue_tasks *previous_cell;
+};
+//
+//struct dd_task {
+//	TaskHandle_t t_handle;
+//	enum task_type type;
+//	uint32_t task_id;
+//	uint32_t release_time;
+//	uint32_t absolute_deadline;
+//	uint32_t completion_time;
+//};
+//
+typedef struct {
+	TaskHandle_t t_handle;
+	enum task_type type;
+	uint32_t task_id;
+	uint32_t release_time;
+	uint32_t absolute_deadline;
+	uint32_t completion_time;
+} dd_task;
+
+struct dd_task_list {
+	dd_task task;
+	struct dd_task_list *next_task;
+};
+//
+//typedef struct {
+//	dd_task task;
+//	struct dd_task_list *next_task;
+//}dd_task_list;
+
+void create_dd_task( TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
+void delete_dd_task(uint32_t task_id);
+//**dd_task_list get_active_dd_task_list(void);
+//**dd_task_list get_complete_dd_task_list(void);
+//**dd_task_list get_overdue_dd_task_list(void);
+struct dd_task_list get_active_dd_task_list(void);
+struct dd_task_list get_complete_dd_task_list(void);
+struct dd_task_list get_overdue_dd_task_list(void);
+void ddTaskGenerator(void);
+void monitorTask(void);
+
+
+//Three different lists we need
+struct dd_task_list activeList;
+
+struct dd_task_list completedList;
+struct dd_task_list overdueList;
+
+xQueueHandle xQueueTask = 0;
+xQueueHandle xQueueActiveList = 0;
+xQueueHandle xQueueCompletedList = 0;
+xQueueHandle xQueueOverdueList = 0;
 int main(void)
 {
 
-	prvSetupHardware();
 
-	/* Create the queue used by the queue send and queue receive tasks.
-	http://www.freertos.org/a00116.html */
-	xQueue_handle = xQueueCreate( 	mainQUEUE_LENGTH,		/* The number of items the queue can hold. */
-							sizeof( uint16_t ) );	/* The size of each item the queue holds. */
+	//create dd_scheduler and the user tasks as tasks here,
+	//those tasks call the subtasks templated in this file.
 
-//	xQueue_TrafficFlow = xQueueCreate( 	mainQUEUE_LENGTH,		/* The number of items the queue can hold. */
-//								sizeof( uint16_t ) );
-//	xQueue_Light = xQueueCreate( 	mainQUEUE_LENGTH,		/* The number of items the queue can hold. */
-//								sizeof( uint16_t ) );
-//	xQueue_TrafficGeneration = xQueueCreate( 	mainQUEUE_LENGTH,		/* The number of items the queue can hold. */
-//								sizeof( uint16_t ) );
+	//struct dd_task_list headTask;
 
+	struct dd_task_list task;
+	xQueueHandle xQueueMessage = xQueueCreate(100, sizeof(char));
 
-//	xQueue_TrafficFlow = xQueueCreate(1, sizeof(int));
-//	xQueue_Light = xQueueCreate(1, sizeof(uint16_t));
-//	xQueue_TrafficGeneration = xQueueCreate(1, sizeof(int));
+	//xQueueHandle xQueueTask = xQueueCreate(100, sizeof(dd_task));
+	xQueueTask = xQueueCreate(100, 100);
 
-	/* Add to the registry, for the benefit of kernel aware debugging. */
-//	vQueueAddToRegistry( xQueue_handle, "MainQueue" );
-//	vQueueAddToRegistry(xQueue_TrafficFlow, "TrafficFlowQueue");
-//	vQueueAddToRegistry(xQueue_Light, "LightQueue");
-//	vQueueAddToRegistry(xQueue_TrafficGeneration, "TrafficGenerationQueue");
-
-
-//	xTaskCreate(TrafficFlowAdjustmentTask, "Traffic Flow Adjustment", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-//	xTaskCreate(TrafficCreatorTask, "Traffic Creator", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-//	xTaskCreate(TrafficLightTask, "Traffic Light Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-//	xTaskCreate(TrafficDisplayTask, "Traffic Display Task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-
-	vTaskStartScheduler();
-
-	/* Start the tasks and timer running. */
-	//vTaskStartScheduler();
+	//For get_active_dd_task_list
+	xQueueActiveList = xQueueCreate(100, sizeof(task));
+	//For get_completed_dd_task_list
+	xQueueCompletedList = xQueueCreate(100, sizeof(task));
+	//For get_overdue_dd_task_list
+	xQueueOverdueList = xQueueCreate(100, sizeof(task));
 
 	return 0;
 }
 
 
-/*-----------------------------------------------------------*/
+/**
+ * Referenced as release_dd_task in lab manual
+ * Receives all information necessary to create a new dd_task struct
+ * Struct is packaged as a message and sent to a queue for the DDS to receive
+ */
+void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
+	//Assign release time to new task
 
-TaskHandle_t dd_tcreate(Task_param) {
+//	struct dd_task newTask(t_handle, type, task_id); /*(uint32_t)0, absolute_deadline, (uint32_t)0); */
+
+//	struct dd_task {
+//		TaskHandle_t t_handle;
+//		enum task_type type;
+//		uint32_t task_id;
+//		uint32_t release_time;
+//		uint32_t absolute_deadline;
+//		uint32_t completion_time;
+//	};
+
+	//TODO: use system clock for release time
+	dd_task newTask;
+	newTask.t_handle = t_handle;
+	newTask.type = type;
+	newTask.task_id = task_id;
+	newTask.release_time = 0;
+	newTask.absolute_deadline = absolute_deadline;
+	newTask.completion_time = 0;
+
+	//Add DD-Task to Active Task List
+	addToActiveList(newTask);
+
+
+	//Sort list by deadline
+	sortByDeadline();
+
+	//Set priorities of User-Defined Tasks accordingly
+}
+
+
+void delete_dd_task(uint32_t task_id) {
+	//Assign completion time to newly-completed DD-Task
+
+
+	//Remove DD-Task from Active Task List and add to Completed Task List
+
+
+	//Sort Active Task List by deadline
+	sortByDeadline();
+
+	//Set priorities of the User-Defined Tasks accordingly
 
 }
 
 
-uint_32 dd_delete(TaskHandle_t) {
+/**
+ * Sends a message to a queue requesting the Active Task List from DDS
+ * Once a response is received from the DDS, the function returns the list
+ */
+struct dd_task_list get_active_dd_task_list(void) {
+
 
 
 }
 
+/**
+ * Sends a message to a queue requesting the Completed Task List from the DDS
+ * One a response is received from the DDS, the function returns the list
+ */
+struct dd_task_list get_complete_dd_task_list(void) {
 
-uint_32 dd_return_active_list(**list) {
+}
 
+/**
+ * Sends a message to a queue requesting the Overdue Task List from the DDS
+ * Once a response is received from the DDS, the function returns the list
+ */
+struct dd_task_list get_overdue_dd_task_list(void) {
+
+}
+
+void sortListByDeadline() {
+
+}
+
+void addToActiveList(struct dd_task_list head, dd_task newTask) {
+	struct dd_task_list node = head;
+	while(node.task != NULL) {
+		node = *node.next_task;
+	}
+	node.task = newTask;
+}
+
+
+void ddTaskGenerator(void) {
 
 }
 
 
-uint_32 dd_return_overdue_list(**list) {
-
+/**
+ *
+ * Responsible for reporting the following system information
+ * 		- Number of active DD-Tasks
+ * 		- Number of completed DD-Tasks
+ * 		- Number of overdue DD-Tasks
+ *
+ * Collects information from DDS using get_active_dd_task_list,get_complete_dd_task_list, and get_overdue_dd_task_list
+ */
+void monitorTask(void) {
 
 }
-
-
-
-
-/*-----------------------------------------------------------*/
 
 void vApplicationMallocFailedHook( void )
 {
@@ -341,6 +454,3 @@ static void prvSetupHardware( void )
 	/* TODO: Setup the clocks, etc. here, if they were not configured before
 	main() was called. */
 }
-
-
-
