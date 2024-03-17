@@ -280,9 +280,20 @@ int main(void)
 	//For get_overdue_dd_task_list
 	xQueueOverdueList = xQueueCreate(100, sizeof(task));
 
+
+	//Three total tasks, DD, and 2 user tasks
+	xTaskCreate(dd_scheduler, "Deadline Driven Scheduler", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+	//User generated tasks or smth
+
+
 	return 0;
 }
 
+void dd_scheduler(void) {
+	
+	//Actual dd scheduler, run the tasks in there
+
+}
 
 /**
  * Referenced as release_dd_task in lab manual
@@ -314,7 +325,6 @@ void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id
 
 	//Add DD-Task to Active Task List
 	addToActiveList(newTask);
-
 
 	//Sort list by deadline
 	sortByDeadline();
