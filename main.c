@@ -217,6 +217,17 @@ overdue_tasks *previous_cell;
 //	uint32_t completion_time;
 //};
 //
+
+// task parameter struct
+typedef struct{
+	uint32_t execution_time;
+	uint32_t period;
+	uint32_t task_id;
+	uint32_t type;
+} dd_task_parameters;
+
+
+
 typedef struct {
 	TaskHandle_t t_handle;
 	enum task_type type;
@@ -388,7 +399,13 @@ void addToActiveList(struct dd_task_list head, dd_task newTask) {
 
 
 void ddTaskGenerator(void) {
+	dd_task_parameters *dd_task_parameters = (dd_task_parameters*) pvParameters;
 
+	for(;;){
+		// call create_dd_task and pass task parameters
+
+	}
+	//delay the task generator task for the period of task?
 }
 
 
