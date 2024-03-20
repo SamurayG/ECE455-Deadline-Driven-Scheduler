@@ -398,12 +398,12 @@ void addToActiveList(struct dd_task_list head, dd_task newTask) {
 }
 
 
-void ddTaskGenerator(void) {
+void ddTaskGenerator(void *pvParameters) {
 	dd_task_parameters *dd_task_parameters = (dd_task_parameters*) pvParameters;
 
 	for(;;){
 		// call create_dd_task and pass task parameters
-
+		create_dd_task(task_parameters[0].type, task_parameters[0].task_id, task_parameters[0].period, task_parameters[0].execution_time);	
 	}
 	//delay the task generator task for the period of task?
 }
