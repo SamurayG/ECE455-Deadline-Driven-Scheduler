@@ -180,6 +180,8 @@ static void prvSetupHardware( void );
 //void myADC_Init();
 //void myGPIO_Init();
 
+
+
 xQueueHandle xQueue_handle = 0;
 xQueueHandle xQueue_TrafficFlow = 0;
 xQueueHandle xQueue_Light = 0;
@@ -247,16 +249,20 @@ struct dd_task_list {
 //	struct dd_task_list *next_task;
 //}dd_task_list;
 
-void create_dd_task( TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
-void delete_dd_task(uint32_t task_id);
+dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
+void delete_dd_task(struct dd_task_list list, struct dd_task_list completedList, uint32_t task_id);
 //**dd_task_list get_active_dd_task_list(void);
 //**dd_task_list get_complete_dd_task_list(void);
 //**dd_task_list get_overdue_dd_task_list(void);
 struct dd_task_list get_active_dd_task_list(void);
 struct dd_task_list get_complete_dd_task_list(void);
 struct dd_task_list get_overdue_dd_task_list(void);
-void ddTaskGenerator(void);
+void addToList(struct dd_task_list list,dd_task task);
+void sortByDeadline(dd_task_list);
+void ddTaskGenerator(void *pvParameters);
 void monitorTask(void);
+void dd_scheduler(void *pvParameters);
+
 
 
 //Three different lists we need
@@ -269,6 +275,7 @@ xQueueHandle xQueueTask = 0;
 xQueueHandle xQueueActiveList = 0;
 xQueueHandle xQueueCompletedList = 0;
 xQueueHandle xQueueOverdueList = 0;
+xQueueHandle xQueueMessage = 0;
 int main(void)
 {
 
@@ -279,18 +286,14 @@ int main(void)
 	//struct dd_task_list headTask;
 
 	struct dd_task_list task;
-	xQueueHandle xQueueMessage = xQueueCreate(100, sizeof(char));
+	xQueueMessage = xQueueCreate(100, sizeof(char));
 
 	//xQueueHandle xQueueTask = xQueueCreate(100, sizeof(dd_task));
 	xQueueTask = xQueueCreate(100, 100);
 
-	//For get_active_dd_task_list
 	xQueueActiveList = xQueueCreate(100, sizeof(task));
-	//For get_completed_dd_task_list
 	xQueueCompletedList = xQueueCreate(100, sizeof(task));
-	//For get_overdue_dd_task_list
 	xQueueOverdueList = xQueueCreate(100, sizeof(task));
-
 
 	//Three total tasks, DD, and 2 user tasks
 	xTaskCreate(dd_scheduler, "Deadline Driven Scheduler", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
@@ -300,10 +303,58 @@ int main(void)
 	return 0;
 }
 
-void dd_scheduler(void) {
-	
-	//Actual dd scheduler, run the tasks in there
+void dd_scheduler(void *pvParameters) {
 
+
+	struct dd_task_list* activeList = malloc(sizeof(struct dd_task_list));
+	struct dd_task_list* completedList = malloc(sizeof(struct dd_task_list));
+	struct dd_task_list* overdueList = malloc(sizeof(struct dd_task_list));
+
+	dd_task initialTask;
+	initialTask.t_handle = NULL;
+	initialTask.type = PERIODIC;
+	initialTask.task_id = 0;
+	initialTask.absolute_deadline = 0;
+	initialTask.completion_time = 0;
+	initialTask.release_time = 0;
+
+	//Set initial head node as a NULL task
+	activeList->task = initialTask;
+	completedList->task = initialTask;
+	overdueList->task = initialTask;
+	uint32_t ID = 1;
+	char message[] = "";
+
+	while(1) {
+
+		/**
+		 * Message is what action to take (Strings)
+		 * 1. Create Task
+		 * 2. Delete Task
+		 * 3. Get active list
+		 * 4. Get completed list
+		 * 5. Get overdue list
+		*/
+		xQueueReceive(xQueueMessage, &message, 100);
+
+		if(strcmp(message, "create") == 0) {
+			//dd_task newTask = create_dd_task(NULL, enum task_type APERIODIC, ID, 10);
+			//addToList(activeList, newTask);
+			//ID++;
+		} else if(strcmp(message, "delete")) {
+			//delete_dd_task(activeList, completedList, ID);
+		} else if(strcmp(message, "active")) {
+			struct dd_task_list activeTasks = get_active_dd_task_list();
+
+		} else if(strcmp(message, "completed")) {
+			struct dd_task_list completedTasks = get_complete_dd_task_list();
+
+		} else if(strcmp(message, "overdue")) {
+			struct dd_task_list overdueTasks = get_overdue_dd_task_list();
+
+		}
+
+	}
 }
 
 /**
@@ -311,7 +362,7 @@ void dd_scheduler(void) {
  * Receives all information necessary to create a new dd_task struct
  * Struct is packaged as a message and sent to a queue for the DDS to receive
  */
-void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
+dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
 	//Assign release time to new task
 
 //	struct dd_task newTask(t_handle, type, task_id); /*(uint32_t)0, absolute_deadline, (uint32_t)0); */
@@ -325,34 +376,51 @@ void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id
 //		uint32_t completion_time;
 //	};
 
-	//TODO: use system clock for release time
 	dd_task newTask;
 	newTask.t_handle = t_handle;
 	newTask.type = type;
 	newTask.task_id = task_id;
-	newTask.release_time = 0;
+	newTask.release_time = time();
 	newTask.absolute_deadline = absolute_deadline;
 	newTask.completion_time = 0;
 
 	//Add DD-Task to Active Task List
-	addToActiveList(newTask);
+	//addToActiveList(newTask);
+	addToList(activeList, newTask);
 
 	//Sort list by deadline
-	sortByDeadline();
+	sortByDeadline(activeList);
 
 	//Set priorities of User-Defined Tasks accordingly
+
+	return newTask;
 }
 
 
-void delete_dd_task(uint32_t task_id) {
-	//Assign completion time to newly-completed DD-Task
+//TODO: make the function look nicer
+//Don't know if pass by reference will work for addToList and then sortByDeadline
+void delete_dd_task(struct dd_task_list list, struct dd_task_list completedList, uint32_t task_id) {
+	dd_task completedTask;
 
+	//Assign completion time to newly-completed DD-Task
+	struct dd_task_list node = list;
+	while(node.task.task_id != task_id) {
+		node = *node.next_task;
+	}
+	node.task.completion_time = time();
+	completedTask = node.task;
 
 	//Remove DD-Task from Active Task List and add to Completed Task List
+	node = list;
+	while(node.next_task->task.task_id != task_id) {
+		node = *node.next_task;
+	}
+	node.next_task = node.next_task->next_task;
 
+	addToList(completedList, completedTask);
 
 	//Sort Active Task List by deadline
-	sortByDeadline();
+	sortByDeadline(completedList);
 
 	//Set priorities of the User-Defined Tasks accordingly
 
@@ -365,7 +433,16 @@ void delete_dd_task(uint32_t task_id) {
  */
 struct dd_task_list get_active_dd_task_list(void) {
 
+	char message[] = "active";
+	struct dd_task_list taskList;
 
+	//Send message requesting active list
+	xQueueSend(xQueueMessage, &message, 100);
+
+	//Receive Active Task List
+	xQueueReceive(xQueueActiveList, &taskList, 100);
+
+	return taskList;
 
 }
 
@@ -375,6 +452,16 @@ struct dd_task_list get_active_dd_task_list(void) {
  */
 struct dd_task_list get_complete_dd_task_list(void) {
 
+	char message[] = "completed";
+	struct dd_task_list taskList;
+
+	//Send message requesting active list
+	xQueueSend(xQueueMessage, &message, 100);
+
+	//Receive Completed Task List
+	xQueueReceive(xQueueCompletedList, &taskList, 100);
+
+	return taskList;
 }
 
 /**
@@ -383,18 +470,32 @@ struct dd_task_list get_complete_dd_task_list(void) {
  */
 struct dd_task_list get_overdue_dd_task_list(void) {
 
+	char message[] = "overdue";
+	struct dd_task_list taskList;
+
+	//Send message requesting active list
+	xQueueSend(xQueueMessage, &message, 100);
+
+	//Receive Overdue Task List
+	xQueueReceive(xQueueOverdueList, &taskList, 100);
+
+	return taskList;
 }
 
 void sortListByDeadline() {
 
 }
 
-void addToActiveList(struct dd_task_list head, dd_task newTask) {
-	struct dd_task_list node = head;
-	while(node.task != NULL) {
+void addToList(struct dd_task_list list, dd_task task) {
+	struct dd_task_list node = list;
+	struct dd_task_list newNode;
+	newNode.task = task;
+	newNode.next_task = NULL;
+
+	while(node.next_task != NULL) {
 		node = *node.next_task;
 	}
-	node.task = newTask;
+	node.next_task = &newNode;
 }
 
 
@@ -403,7 +504,7 @@ void ddTaskGenerator(void *pvParameters) {
 
 	for(;;){
 		// call create_dd_task and pass task parameters
-		create_dd_task(task_parameters[0].type, task_parameters[0].task_id, task_parameters[0].period, task_parameters[0].execution_time);	
+		create_dd_task(task_parameters[0].type, task_parameters[0].task_id, task_parameters[0].period, task_parameters[0].execution_time);
 	}
 	//delay the task generator task for the period of task?
 }
