@@ -116,7 +116,8 @@ xQueueHandle xQueueActiveList = 0;
 xQueueHandle xQueueCompletedList = 0;
 xQueueHandle xQueueOverdueList = 0;
 xQueueHandle xQueueMessage = 0;
-TaskHandle_t dds_task = NULL;
+
+
 int main(void)
 {
 
@@ -166,45 +167,36 @@ void dd_scheduler(void *pvParameters) {
 	overdueList->task = initialTask;
 	periodicList->task = initialTask;
 
-	uint32_t ID = 1;
-	char message[] = "";
+	struct taskMessage message;
 
 	while(1) {
 
-		/**
-		 * Message is what action to take (Strings)
-		 * 1. Create Task
-		 * 2. Delete Task
-		 * 3. Get active list
-		 * 4. Get completed list
-		 * 5. Get overdue list
-		*/
 		if(xQueueReceive(xQueueMessage, &message, 100) == pdPASS) {
 			dd_task newTask;
-			if(strcmp(message, "create") == 0) {
+			if(strcmp(message.message, "create") == 0) {
 				//dd_task newTask = create_dd_task(NULL, enum task_type APERIODIC, ID, 10);
 				//addToList(activeList, newTask);
 				//ID++;
 				createMessage(newTask, &activeList, &periodicList);
 				edf(&activeList);
 
-			} else if(strcmp(message, "release")) {
+			} else if(strcmp(message.message, "release")) {
 
 				releaseMessage(newTask, &activeList, &periodicList);
 				edf(&activeList);
 
-			} else if(strcmp(message, "delete")) {
+			} else if(strcmp(message.message, "delete")) {
 
 				deleteMessage(newTask, &activeList, &completedList, &overdueList);
 				edf(&activeList);
 
-			} else if(strcmp(message, "active")) {
+			} else if(strcmp(message.message, "active")) {
 				struct dd_task_list activeTasks = get_active_dd_task_list();
 
-			} else if(strcmp(message, "completed")) {
+			} else if(strcmp(message.message, "completed")) {
 				struct dd_task_list completedTasks = get_complete_dd_task_list();
 
-			} else if(strcmp(message, "overdue")) {
+			} else if(strcmp(message.message, "overdue")) {
 				struct dd_task_list overdueTasks = get_overdue_dd_task_list();
 
 			}
@@ -333,6 +325,7 @@ void release_dd_task(uint32_t taskID) {
 
 
 /**
+ * CALL THIS FUNCTION FOR EACH NEW BENCHMARK TEST
  * Receives all information necessary to create a new dd_task struct
  * Struct is packaged as a message and sent to a queue for the DDS to receive
  */
@@ -522,16 +515,40 @@ void sortListByDeadline(struct dd_task_list **head) {
 
 }
 
-void addToList(struct dd_task_list list, dd_task task) {
-	struct dd_task_list node = list;
-	struct dd_task_list newNode;
-	newNode.task = task;
-	newNode.next_task = NULL;
 
-	while(node.next_task != NULL) {
-		node = *node.next_task;
+//Adds to list based on deadline, no need to sort
+void addToList(struct dd_task_list list, dd_task task) {
+//	struct dd_task_list node = list;
+//	struct dd_task_list newNode;
+//	newNode.task = task;
+//	newNode.next_task = NULL;
+//
+//	while(node.next_task != NULL) {
+//		node = *node.next_task;
+//	}
+//	node.next_task = &newNode;
+	struct dd_task_list *node = &list;
+	struct dd_task_list *prev = NULL;
+	struct dd_task_list *newNode = (struct dd_task_list*)malloc(sizeof(struct dd_task_list));
+	if (newNode == NULL) {
+		// Handle memory allocation failure
+		return;
 	}
-	node.next_task = &newNode;
+	newNode->task = task;
+	newNode->next_task = NULL;
+
+	while (node != NULL && node->task.absolute_deadline < task.absolute_deadline) {
+		prev = node;
+		node = node->next_task;
+	}
+
+	if (prev == NULL) {
+		newNode->next_task = &list;
+		list = *newNode;
+	} else {
+		newNode->next_task = prev->next_task;
+		prev->next_task = newNode;
+	}
 }
 
 
@@ -558,6 +575,16 @@ void ddTaskGenerator(void *pvParameters) {
 void monitorTask(void) {
 
 }
+
+void bench1task1() {
+
+	while(1) {
+		printf("bench1 task1 executing\n");
+
+		delete_dd_task();
+	}
+}
+
 
 void vApplicationMallocFailedHook( void )
 {
