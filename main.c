@@ -1,139 +1,3 @@
-/*
-    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
-    All rights reserved
-
-    VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
-
-    This file is part of the FreeRTOS distribution.
-
-    FreeRTOS is free software; you can redistribute it and/or modify it under
-    the terms of the GNU General Public License (version 2) as published by the
-    Free Software Foundation >>>> AND MODIFIED BY <<<< the FreeRTOS exception.
-
-    ***************************************************************************
-    >>!   NOTE: The modification to the GPL is included to allow you to     !<<
-    >>!   distribute a combined work that includes FreeRTOS without being   !<<
-    >>!   obliged to provide the source code for proprietary components     !<<
-    >>!   outside of the FreeRTOS kernel.                                   !<<
-    ***************************************************************************
-
-    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT ANY
-    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-    FOR A PARTICULAR PURPOSE.  Full license text is available on the following
-    link: http://www.freertos.org/a00114.html
-
-    ***************************************************************************
-     *                                                                       *
-     *    FreeRTOS provides completely free yet professionally developed,    *
-     *    robust, strictly quality controlled, supported, and cross          *
-     *    platform software that is more than just the market leader, it     *
-     *    is the industry's de facto standard.                               *
-     *                                                                       *
-     *    Help yourself get started quickly while simultaneously helping     *
-     *    to support the FreeRTOS project by purchasing a FreeRTOS           *
-     *    tutorial book, reference manual, or both:                          *
-     *    http://www.FreeRTOS.org/Documentation                              *
-     *                                                                       *
-    ***************************************************************************
-
-    http://www.FreeRTOS.org/FAQHelp.html - Having a problem?  Start by reading
-    the FAQ page "My application does not run, what could be wwrong?".  Have you
-    defined configASSERT()?
-
-    http://www.FreeRTOS.org/support - In return for receiving this top quality
-    embedded software for free we request you assist our global community by
-    participating in the support forum.
-
-    http://www.FreeRTOS.org/training - Investing in training allows your team to
-    be as productive as possible as early as possible.  Now you can receive
-    FreeRTOS training directly from Richard Barry, CEO of Real Time Engineers
-    Ltd, and the world's leading authority on the world's leading RTOS.
-
-    http://www.FreeRTOS.org/plus - A selection of FreeRTOS ecosystem products,
-    including FreeRTOS+Trace - an indispensable productivity tool, a DOS
-    compatible FAT file system, and our tiny thread aware UDP/IP stack.
-
-    http://www.FreeRTOS.org/labs - Where new FreeRTOS products go to incubate.
-    Come and try FreeRTOS+TCP, our new open source TCP/IP stack for FreeRTOS.
-
-    http://www.OpenRTOS.com - Real Time Engineers ltd. license FreeRTOS to High
-    Integrity Systems ltd. to sell under the OpenRTOS brand.  Low cost OpenRTOS
-    licenses offer ticketed support, indemnification and commercial middleware.
-
-    http://www.SafeRTOS.com - High Integrity Systems also provide a safety
-    engineered and independently SIL3 certified version for use in safety and
-    mission critical applications that require provable dependability.
-
-    1 tab == 4 spaces!
-*/
-
-/*
-FreeRTOS is a market leading RTOS from Real Time Engineers Ltd. that supports
-31 architectures and receives 77500 downloads a year. It is professionally
-developed, strictly quality controlled, robust, supported, and free to use in
-commercial products without any requirement to expose your proprietary source
-code.
-
-This simple FreeRTOS demo does not make use of any IO ports, so will execute on
-any Cortex-M3 of Cortex-M4 hardware.  Look for TODO markers in the code for
-locations that may require tailoring to, for example, include a manufacturer
-specific header file.
-
-This is a starter project, so only a subset of the RTOS features are
-demonstrated.  Ample source comments are provided, along with web links to
-relevant pages on the http://www.FreeRTOS.org site.
-
-Here is a description of the project's functionality:
-
-The main() Function:
-main() creates the tasks and software timers described in this section, before
-starting the scheduler.
-
-The Queue Send Task:
-The queue send task is implemented by the prvQueueSendTask() function.
-The task uses the FreeRTOS vTaskDelayUntil() and xQueueSend() API functions to
-periodically send the number 100 on a queue.  The period is set to 200ms.  See
-the comments in the function for more details.
-http://www.freertos.org/vtaskdelayuntil.html
-http://www.freertos.org/a00117.html
-
-The Queue Receive Task:
-The queue receive task is implemented by the prvQueueReceiveTask() function.
-The task uses the FreeRTOS xQueueReceive() API function to receive values from
-a queue.  The values received are those sent by the queue send task.  The queue
-receive task increments the ulCountOfItemsReceivedOnQueue variable each time it
-receives the value 100.  Therefore, as values are sent to the queue every 200ms,
-the value of ulCountOfItemsReceivedOnQueue will increase by 5 every second.
-http://www.freertos.org/a00118.html
-
-An example software timer:
-A software timer is created with an auto reloading period of 1000ms.  The
-timer's callback function increments the ulCountOfTimerCallbackExecutions
-variable each time it is called.  Therefore the value of
-ulCountOfTimerCallbackExecutions will count seconds.
-http://www.freertos.org/RTOS-software-timer.html
-
-The FreeRTOS RTOS tick hook (or callback) function:
-The tick hook function executes in the context of the FreeRTOS tick interrupt.
-The function 'gives' a semaphore every 500th time it executes.  The semaphore
-is used to synchronise with the event semaphore task, which is described next.
-
-The event semaphore task:
-The event semaphore task uses the FreeRTOS xSemaphoreTake() API function to
-wait for the semaphore that is given by the RTOS tick hook function.  The task
-increments the ulCountOfReceivedSemaphores variable each time the semaphore is
-received.  As the semaphore is given every 500ms (assuming a tick frequency of
-1KHz), the value of ulCountOfReceivedSemaphores will increase by 2 each second.
-
-The idle hook (or callback) function:
-The idle hook function queries the amount of free FreeRTOS heap space available.
-See vApplicationIdleHook().
-
-The malloc failed and stack overflow hook (or callback) functions:
-These two hook functions are provided as examples, but do not contain any
-functionality.
-*/
-
 /* Standard includes. */
 #include <stdint.h>
 #include <stdio.h>
@@ -235,6 +99,7 @@ typedef struct {
 	enum task_type type;
 	uint32_t task_id;
 	uint32_t release_time;
+	uint_32_t period;
 	uint32_t absolute_deadline;
 	uint32_t completion_time;
 } dd_task;
@@ -264,12 +129,19 @@ void monitorTask(void);
 void dd_scheduler(void *pvParameters);
 
 
+void edf(dd_task_list *activeList);
+void createMessage(dd_task task, dd_task_list *activeList, dd_task_list *periodicList);
+void releaseMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *periodicList);
+void deleteMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *completedList, dd_task_list *overdueList);
+
+
+
 
 //Three different lists we need
 struct dd_task_list activeList;
-
 struct dd_task_list completedList;
 struct dd_task_list overdueList;
+struct dd_task_list periodicList;
 
 xQueueHandle xQueueTask = 0;
 xQueueHandle xQueueActiveList = 0;
@@ -314,6 +186,7 @@ void dd_scheduler(void *pvParameters) {
 	initialTask.t_handle = NULL;
 	initialTask.type = PERIODIC;
 	initialTask.task_id = 0;
+	initialTask.period = 0;
 	initialTask.absolute_deadline = 0;
 	initialTask.completion_time = 0;
 	initialTask.release_time = 0;
@@ -322,6 +195,8 @@ void dd_scheduler(void *pvParameters) {
 	activeList->task = initialTask;
 	completedList->task = initialTask;
 	overdueList->task = initialTask;
+	periodicList->task = initialTask;
+
 	uint32_t ID = 1;
 	char message[] = "";
 
@@ -335,28 +210,117 @@ void dd_scheduler(void *pvParameters) {
 		 * 4. Get completed list
 		 * 5. Get overdue list
 		*/
-		xQueueReceive(xQueueMessage, &message, 100);
+		if(xQueueReceive(xQueueMessage, &message, 100) == pdPASS) {
+			dd_task task;
+			if(strcmp(message, "create") == 0) {
+			
+				createMessage(task, &activeList, &PERIODIC);
+				edf(&active);
+			} else  if(strcmp(message, "release")) {
 
-		if(strcmp(message, "create") == 0) {
-			//dd_task newTask = create_dd_task(NULL, enum task_type APERIODIC, ID, 10);
-			//addToList(activeList, newTask);
-			//ID++;
-		} else if(strcmp(message, "delete")) {
-			//delete_dd_task(activeList, completedList, ID);
-		} else if(strcmp(message, "active")) {
-			struct dd_task_list activeTasks = get_active_dd_task_list();
+				releaseMessage(task,&activeList,&periodicList);
+				edf(&activeList);
+			
+			} else if(strcmp(message, "delete")) {
+				
+				deleteMessage(task, &activeList, &completedList, &overdueList);
+				edf(&active);
 
-		} else if(strcmp(message, "completed")) {
-			struct dd_task_list completedTasks = get_complete_dd_task_list();
 
-		} else if(strcmp(message, "overdue")) {
-			struct dd_task_list overdueTasks = get_overdue_dd_task_list();
+			} else if(strcmp(message, "active")) {
+				struct dd_task_list activeTasks = get_active_dd_task_list();
 
+			} else if(strcmp(message, "completed")) {
+				struct dd_task_list completedTasks = get_complete_dd_task_list();
+
+			} else if(strcmp(message, "overdue")) {
+				struct dd_task_list overdueTasks = get_overdue_dd_task_list();
+
+			}
+		} else {
+			vTaskSuspend(NULL);
 		}
 
 	}
 }
 
+void createMessage(dd_task task, dd_task_list *activeList, dd_task_list *periodicList) {
+	int releaseTime = xTaskGetTickCount()
+
+	dd_task message =  {
+		.t_handle = task.t_handle,
+		.type = task.task_type,
+		.task_id = task.task_id,
+		.release_time = releaseTime,
+		.absolute_deadline = task.absolute_deadline,
+		.period = task.period,
+		.completion_time = 0
+		
+	};
+
+	if(task.task_type == PERIODIC) {
+		message.absolute_deadline = releaseTime + message.period;
+		addToList(periodicList,message);
+		TimerHandle_t timer = xTimerCreate("periodicTask", message.period, pdTRUE, (void *) 0,vTimerCallback);
+		if(timer == NULL) {
+			printf("error\n");
+		} else {
+			if(xTimerStart(timer,0)) {
+				printf("error\n");
+			}
+		}
+	} else {
+		addToList(activeList, message);
+	}
+}
+
+void releaseMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *periodicList) {
+	int releaseTime = xTaskGetTickCount();
+	dd_task task;
+	struct dd_task_list *node = periodicList
+	while(node != NULL) {
+		if(node->task.task_id = newTask.task_id) {
+			newTask = node->task;
+			newTask.release_time = releaseTime;
+			newTask.absolute_deadline = releaseTime + newTask.period;
+			addToList(activeList,task);
+		}
+	}
+}
+
+void deleteMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *completedList, dd_task_list *overdueList) {
+	int time = xTaskGetTickCount();
+	struct dd_task_list head = activeList;
+
+	if(head != null) {
+		int absoluteDeadline = head->task.absolute_deadline;
+		head->task.completion_time = time;
+		if(time <= absoluteDeadline) {
+			addToList(completedList,head->task);
+		} else {
+			addToList(overdueList, head->task);
+		}
+	}
+}
+
+void edf(dd_task_list *activeList) {
+	dd_task_list *node = activeList;
+	if(node != NULL) {
+		TaskHandle_t handle = node->task.t_handle;
+		uint32_t id = node->task.task_id;
+		vTaskPrioritySet(handle, INT_MAX);
+		vTaskResume(handle);
+
+		if(node != NULL && node->next_task != NULL) {
+			node = node->next_task;
+			TaskHandle_t handle = node->task.t_handle;
+			if(node->task.task_id != id) {
+				vTaskPrioritySet(handle, IDLE);
+				vTaskSuspend(handle);
+			}
+		}
+	}
+}
 /**
  * Referenced as release_dd_task in lab manual
  * Receives all information necessary to create a new dd_task struct
