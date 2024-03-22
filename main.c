@@ -1,8 +1,9 @@
+
 /* Standard includes. */
 #include <stdint.h>
 #include <stdio.h>
 #include "stm32f4_discovery.h"
-
+#include <limits.h>
 /* Kernel includes. */
 #include "stm32f4xx.h"
 #include "../FreeRTOS_Source/include/FreeRTOS.h"
@@ -15,36 +16,12 @@
 
 /*-----------------------------------------------------------*/
 #define mainQUEUE_LENGTH 100
-//void create_dd_task( TaskHandle_t t_handle, task_type type, uint32_t task_id, uint32_t absolute_deadline,);
-//void delete_dd_task(uint32_t task_id);
-//**dd_task_list get_active_dd_task_list(void);
-//**dd_task_list get_complete_dd_task_list(void);
-//**dd_task_list get_overdue_dd_task_list(void);
 
 /*
  * TODO: Implement this function for any hardware specific clock configuration
  * that was not already performed before main() was called.
  */
 static void prvSetupHardware( void );
-
-/*
- * The queue send and receive tasks as described in the comments at the top of
- * this file.
- */
-//static void Manager_Task( void *pvParameters );
-//static void Blue_LED_Controller_Task( void *pvParameters );
-//static void Green_LED_Controller_Task( void *pvParameters );
-//static void Red_LED_Controller_Task( void *pvParameters );
-//static void Amber_LED_Controller_Task( void *pvParameters );
-//static void TrafficFlowAdjustmentTask(void *params);
-//static void TrafficCreatorTask(void *params);
-//static void TrafficLightTask(void *params);
-//static void TrafficDisplayTask(void *params);
-//uint16_t getADCValue(void);
-//void myADC_Init();
-//void myGPIO_Init();
-
-
 
 xQueueHandle xQueue_handle = 0;
 xQueueHandle xQueue_TrafficFlow = 0;
@@ -54,8 +31,6 @@ xQueueHandle xQueue_TrafficGeneration = 0;
 
 /*-----------------------------------------------------------*/
 enum task_type {PERIODIC,APERIODIC};
-//#define task_type {PERIODIC, APERIODIC};
-
 struct task_list {
  TaskHandle_t t_handle;
  uint32_t deadline;
@@ -73,16 +48,6 @@ uint32_t creation_time;
 struct overdue_tasks *next_cell; struct
 overdue_tasks *previous_cell;
 };
-//
-//struct dd_task {
-//	TaskHandle_t t_handle;
-//	enum task_type type;
-//	uint32_t task_id;
-//	uint32_t release_time;
-//	uint32_t absolute_deadline;
-//	uint32_t completion_time;
-//};
-//
 
 // task parameter struct
 typedef struct{
@@ -99,42 +64,45 @@ typedef struct {
 	enum task_type type;
 	uint32_t task_id;
 	uint32_t release_time;
-	uint_32_t period;
 	uint32_t absolute_deadline;
 	uint32_t completion_time;
+	uint32_t period;
 } dd_task;
 
 struct dd_task_list {
 	dd_task task;
 	struct dd_task_list *next_task;
 };
-//
-//typedef struct {
-//	dd_task task;
-//	struct dd_task_list *next_task;
-//}dd_task_list;
 
-dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
-void delete_dd_task(struct dd_task_list list, struct dd_task_list completedList, uint32_t task_id);
-//**dd_task_list get_active_dd_task_list(void);
-//**dd_task_list get_complete_dd_task_list(void);
-//**dd_task_list get_overdue_dd_task_list(void);
+struct taskMessage {
+	char *message;
+	TaskHandle_t t_handle;
+	enum task_type type;
+	uint32_t task_id;
+	uint32_t absolute_deadline;
+};
+
+
+//dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
+void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline);
+
+void delete_dd_task(struct dd_task_list activeList, struct dd_task_list completedList, struct dd_task_list overdueList, uint32_t task_id);
 struct dd_task_list get_active_dd_task_list(void);
 struct dd_task_list get_complete_dd_task_list(void);
 struct dd_task_list get_overdue_dd_task_list(void);
 void addToList(struct dd_task_list list,dd_task task);
-void sortByDeadline(dd_task_list);
+void sortByDeadline(struct dd_task_list list);
 void ddTaskGenerator(void *pvParameters);
 void monitorTask(void);
 void dd_scheduler(void *pvParameters);
 
 
-void edf(dd_task_list *activeList);
-void createMessage(dd_task task, dd_task_list *activeList, dd_task_list *periodicList);
-void releaseMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *periodicList);
-void deleteMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *completedList, dd_task_list *overdueList);
-
-
+void edf(struct dd_task_list *activeList);
+void createMessage(dd_task task, struct dd_task_list *activeList, struct dd_task_list *periodicList);
+void releaseMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *periodicList);
+void deleteMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *completedList, struct dd_task_list *overdueList);
+void vTimerCallback(TimerHandle_t xTimer);
+void release_dd_task(uint32_t taskID);
 
 
 //Three different lists we need
@@ -158,7 +126,7 @@ int main(void)
 	//struct dd_task_list headTask;
 
 	struct dd_task_list task;
-	xQueueMessage = xQueueCreate(100, sizeof(char));
+	xQueueMessage = xQueueCreate(100, sizeof(struct taskMessage));
 
 	//xQueueHandle xQueueTask = xQueueCreate(100, sizeof(dd_task));
 	xQueueTask = xQueueCreate(100, 100);
@@ -181,12 +149,12 @@ void dd_scheduler(void *pvParameters) {
 	struct dd_task_list* activeList = malloc(sizeof(struct dd_task_list));
 	struct dd_task_list* completedList = malloc(sizeof(struct dd_task_list));
 	struct dd_task_list* overdueList = malloc(sizeof(struct dd_task_list));
+	struct dd_task_list* periodicList = malloc(sizeof(struct dd_task_list));
 
 	dd_task initialTask;
 	initialTask.t_handle = NULL;
 	initialTask.type = PERIODIC;
 	initialTask.task_id = 0;
-	initialTask.period = 0;
 	initialTask.absolute_deadline = 0;
 	initialTask.completion_time = 0;
 	initialTask.release_time = 0;
@@ -211,21 +179,23 @@ void dd_scheduler(void *pvParameters) {
 		 * 5. Get overdue list
 		*/
 		if(xQueueReceive(xQueueMessage, &message, 100) == pdPASS) {
-			dd_task task;
+			dd_task newTask;
 			if(strcmp(message, "create") == 0) {
-			
-				createMessage(task, &activeList, &PERIODIC);
-				edf(&active);
-			} else  if(strcmp(message, "release")) {
-
-				releaseMessage(task,&activeList,&periodicList);
+				//dd_task newTask = create_dd_task(NULL, enum task_type APERIODIC, ID, 10);
+				//addToList(activeList, newTask);
+				//ID++;
+				createMessage(newTask, &activeList, &periodicList);
 				edf(&activeList);
-			
-			} else if(strcmp(message, "delete")) {
-				
-				deleteMessage(task, &activeList, &completedList, &overdueList);
-				edf(&active);
 
+			} else if(strcmp(message, "release")) {
+
+				releaseMessage(newTask, &activeList, &periodicList);
+				edf(&activeList);
+
+			} else if(strcmp(message, "delete")) {
+
+				deleteMessage(newTask, &activeList, &completedList, &overdueList);
+				edf(&activeList);
 
 			} else if(strcmp(message, "active")) {
 				struct dd_task_list activeTasks = get_active_dd_task_list();
@@ -237,30 +207,29 @@ void dd_scheduler(void *pvParameters) {
 				struct dd_task_list overdueTasks = get_overdue_dd_task_list();
 
 			}
-		} else {
-			vTaskSuspend(NULL);
 		}
 
 	}
 }
 
-void createMessage(dd_task task, dd_task_list *activeList, dd_task_list *periodicList) {
-	int releaseTime = xTaskGetTickCount()
+
+void createMessage(dd_task task, struct dd_task_list *activeList, struct dd_task_list *periodicList) {
+	int releaseTime = xTaskGetTickCount();
 
 	dd_task message =  {
 		.t_handle = task.t_handle,
-		.type = task.task_type,
+		.type = task.type,
 		.task_id = task.task_id,
 		.release_time = releaseTime,
 		.absolute_deadline = task.absolute_deadline,
 		.period = task.period,
 		.completion_time = 0
-		
+
 	};
 
-	if(task.task_type == PERIODIC) {
+	if(task.type == PERIODIC) {
 		message.absolute_deadline = releaseTime + message.period;
-		addToList(periodicList,message);
+		addToList(*periodicList,message);
 		TimerHandle_t timer = xTimerCreate("periodicTask", message.period, pdTRUE, (void *) 0,vTimerCallback);
 		if(timer == NULL) {
 			printf("error\n");
@@ -270,41 +239,41 @@ void createMessage(dd_task task, dd_task_list *activeList, dd_task_list *periodi
 			}
 		}
 	} else {
-		addToList(activeList, message);
+		addToList(*activeList, message);
 	}
 }
 
-void releaseMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *periodicList) {
+void releaseMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *periodicList) {
 	int releaseTime = xTaskGetTickCount();
 	dd_task task;
-	struct dd_task_list *node = periodicList
+	struct dd_task_list *node = &periodicList;
 	while(node != NULL) {
 		if(node->task.task_id = newTask.task_id) {
 			newTask = node->task;
 			newTask.release_time = releaseTime;
 			newTask.absolute_deadline = releaseTime + newTask.period;
-			addToList(activeList,task);
+			addToList(*activeList,task);
 		}
 	}
 }
 
-void deleteMessage(dd_task newTask, dd_task_list *activeList, dd_task_list *completedList, dd_task_list *overdueList) {
+void deleteMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *completedList, struct dd_task_list *overdueList) {
 	int time = xTaskGetTickCount();
-	struct dd_task_list head = activeList;
+	struct dd_task_list head = *activeList;
 
-	if(head != null) {
-		int absoluteDeadline = head->task.absolute_deadline;
-		head->task.completion_time = time;
+	if(head.task.t_handle != NULL) {
+		int absoluteDeadline = head.task.absolute_deadline;
+		head.task.completion_time = time;
 		if(time <= absoluteDeadline) {
-			addToList(completedList,head->task);
+			addToList(*completedList,head.task);
 		} else {
-			addToList(overdueList, head->task);
+			addToList(*overdueList, head.task);
 		}
 	}
 }
 
-void edf(dd_task_list *activeList) {
-	dd_task_list *node = activeList;
+void edf(struct dd_task_list *activeList) {
+	struct dd_task_list *node = activeList;
 	if(node != NULL) {
 		TaskHandle_t handle = node->task.t_handle;
 		uint32_t id = node->task.task_id;
@@ -315,19 +284,51 @@ void edf(dd_task_list *activeList) {
 			node = node->next_task;
 			TaskHandle_t handle = node->task.t_handle;
 			if(node->task.task_id != id) {
-				vTaskPrioritySet(handle, IDLE);
+				vTaskPrioritySet(handle, INT_MIN);
 				vTaskSuspend(handle);
 			}
 		}
 	}
 }
+void vTimerCallback(TimerHandle_t xTimer) {
+    // Your callback function code here
+	uint32_t task_id = pvTimerGetTimerID(xTimer);
+	release_dd_task(task_id);
+}
+
+void release_dd_task(uint32_t taskID) {
+	int time = xTaskGetTickCount();
+
+	struct dd_task_list node = periodicList;
+	while(node.task.task_id != taskID) {
+		node = *node.next_task;
+	}
+
+	dd_task newTask = node.task;
+	newTask.release_time = time;
+	newTask.absolute_deadline = 0;
+
+	addToList(activeList, newTask);
+}
+
+
 /**
- * Referenced as release_dd_task in lab manual
  * Receives all information necessary to create a new dd_task struct
  * Struct is packaged as a message and sent to a queue for the DDS to receive
  */
-dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
-	//Assign release time to new task
+//dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
+void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id, uint32_t absolute_deadline) {
+
+	struct taskMessage msg;
+	msg.message = "create";
+	msg.t_handle = t_handle;
+	msg.type = type;
+	msg.task_id = task_id;
+	msg.absolute_deadline = absolute_deadline;
+
+	xQueueSend(xQueueMessage, &msg, 10);
+
+//Assign release time to new task
 
 //	struct dd_task newTask(t_handle, type, task_id); /*(uint32_t)0, absolute_deadline, (uint32_t)0); */
 
@@ -339,52 +340,61 @@ dd_task create_dd_task(struct dd_task_list activeList, TaskHandle_t t_handle, en
 //		uint32_t absolute_deadline;
 //		uint32_t completion_time;
 //	};
-
-	dd_task newTask;
-	newTask.t_handle = t_handle;
-	newTask.type = type;
-	newTask.task_id = task_id;
-	newTask.release_time = time();
-	newTask.absolute_deadline = absolute_deadline;
-	newTask.completion_time = 0;
+//
+//	dd_task newTask;
+//	newTask.t_handle = t_handle;
+//	newTask.type = type;
+//	newTask.task_id = task_id;
+//	newTask.release_time;
+//	newTask.absolute_deadline = absolute_deadline;
+//	newTask.completion_time = 0;
 
 	//Add DD-Task to Active Task List
 	//addToActiveList(newTask);
-	addToList(activeList, newTask);
+	//addToList(activeList, newTask);
 
 	//Sort list by deadline
-	sortByDeadline(activeList);
+	//sortByDeadline(activeList);
 
 	//Set priorities of User-Defined Tasks accordingly
 
-	return newTask;
+	//return newTask;
+
+
 }
 
 
 //TODO: make the function look nicer
 //Don't know if pass by reference will work for addToList and then sortByDeadline
-void delete_dd_task(struct dd_task_list list, struct dd_task_list completedList, uint32_t task_id) {
+void delete_dd_task(struct dd_task_list activeList, struct dd_task_list completedList, struct dd_task_list overdueList, uint32_t task_id) {
 	dd_task completedTask;
+	int time = xTaskGetTickCount();
 
 	//Assign completion time to newly-completed DD-Task
-	struct dd_task_list node = list;
+	struct dd_task_list node = activeList;
 	while(node.task.task_id != task_id) {
 		node = *node.next_task;
 	}
-	node.task.completion_time = time();
+	node.task.completion_time = time;
 	completedTask = node.task;
 
-	//Remove DD-Task from Active Task List and add to Completed Task List
-	node = list;
+	node = activeList;
 	while(node.next_task->task.task_id != task_id) {
 		node = *node.next_task;
 	}
 	node.next_task = node.next_task->next_task;
 
-	addToList(completedList, completedTask);
+	if(completedTask.absolute_deadline > time) {
+		//Remove DD-Task from Active Task List and add to Completed Task List
+
+		addToList(completedList, completedTask);
+	} else {
+
+		addToList(overdueList, completedTask);
+	}
 
 	//Sort Active Task List by deadline
-	sortByDeadline(completedList);
+	//sortByDeadline(completedList);
 
 	//Set priorities of the User-Defined Tasks accordingly
 
@@ -446,7 +456,34 @@ struct dd_task_list get_overdue_dd_task_list(void) {
 	return taskList;
 }
 
-void sortListByDeadline() {
+void sortListByDeadline(struct dd_task_list **head) {
+
+	struct dd_task_list *sorted = NULL;
+	struct dd_task_list *current = *head;
+
+	while (current != NULL) {
+		struct dd_task_list *next = current->next_task;
+
+		// Find the position to insert the current task in the sorted list
+		if (sorted == NULL || current->task.absolute_deadline < sorted->task.absolute_deadline) {
+			// Insert at the beginning of the sorted list
+			current->next_task = sorted;
+			sorted = current;
+		} else {
+			// Traverse the sorted list to find the correct position
+			struct dd_task_list *temp = sorted;
+			while (temp->next_task != NULL && temp->next_task->task.absolute_deadline <= current->task.absolute_deadline) {
+				temp = temp->next_task;
+			}
+			// Insert current task after temp
+			current->next_task = temp->next_task;
+			temp->next_task = current;
+		}
+
+		current = next;
+	}
+	// Update head to point to the sorted list
+	*head = sorted;
 
 }
 
