@@ -96,13 +96,13 @@ void ddTaskGenerator(void *pvParameters);
 void monitorTask(void);
 void dd_scheduler(void *pvParameters);
 
-
 void edf(struct dd_task_list *activeList);
 void createMessage(dd_task task, struct dd_task_list *activeList, struct dd_task_list *periodicList);
 void releaseMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *periodicList);
 void deleteMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *completedList, struct dd_task_list *overdueList);
 void vTimerCallback(TimerHandle_t xTimer);
 void release_dd_task(uint32_t taskID);
+struct dd_task_list getListHead(struct dd_task_list *list);
 
 
 //Three different lists we need
@@ -117,6 +117,7 @@ xQueueHandle xQueueCompletedList = 0;
 xQueueHandle xQueueOverdueList = 0;
 xQueueHandle xQueueMessage = 0;
 
+TaskHandle_t dds_task = NULL;
 
 int main(void)
 {
@@ -256,7 +257,7 @@ void releaseMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_
 
 void deleteMessage(dd_task newTask, struct dd_task_list *activeList, struct dd_task_list *completedList, struct dd_task_list *overdueList) {
 	int time = xTaskGetTickCount();
-	struct dd_task_list head = *activeList;
+	struct dd_task_list head = getListHead(activeList);
 
 	if(head.task.t_handle != NULL) {
 		int absoluteDeadline = head.task.absolute_deadline;
@@ -287,6 +288,28 @@ void edf(struct dd_task_list *activeList) {
 		}
 	}
 }
+
+struct dd_task_list getListHead(struct dd_task_list *list) {
+
+	// Check if the list is empty
+	if (list == NULL || list->next_task == NULL) {
+		// If the list is empty, return NULL
+		struct dd_task_list emptyNode = {0}; // Assuming task values are initialized to 0
+		return emptyNode;
+	}
+
+	// Store the head node
+	struct dd_task_list headNode = *list->next_task;
+
+	// Update the list's head pointer to point to the next node
+	*list = *headNode.next_task;
+
+	// Return the removed head node
+	return headNode;
+
+
+}
+
 void vTimerCallback(TimerHandle_t xTimer) {
     // Your callback function code here
 	uint32_t task_id = pvTimerGetTimerID(xTimer);
@@ -309,23 +332,10 @@ void release_dd_task(uint32_t taskID) {
 
 	vTaskResume(dds_task);
 
-//	int time = xTaskGetTickCount();
-//
-//	struct dd_task_list node = periodicList;
-//	while(node.task.task_id != taskID) {
-//		node = *node.next_task;
-//	}
-//
-//	dd_task newTask = node.task;
-//	newTask.release_time = time;
-//	newTask.absolute_deadline = 0;
-
-	//addToList(activeList, newTask);
 }
 
 
 /**
- * CALL THIS FUNCTION FOR EACH NEW BENCHMARK TEST
  * Receives all information necessary to create a new dd_task struct
  * Struct is packaged as a message and sent to a queue for the DDS to receive
  */
@@ -345,72 +355,11 @@ void create_dd_task(TaskHandle_t t_handle, enum task_type type, uint32_t task_id
 
 	vTaskResume(dds_task);
 
-//Assign release time to new task
-
-//	struct dd_task newTask(t_handle, type, task_id); /*(uint32_t)0, absolute_deadline, (uint32_t)0); */
-
-//	struct dd_task {
-//		TaskHandle_t t_handle;
-//		enum task_type type;
-//		uint32_t task_id;
-//		uint32_t release_time;
-//		uint32_t absolute_deadline;
-//		uint32_t completion_time;
-//	};
-//
-//	dd_task newTask;
-//	newTask.t_handle = t_handle;
-//	newTask.type = type;
-//	newTask.task_id = task_id;
-//	newTask.release_time;
-//	newTask.absolute_deadline = absolute_deadline;
-//	newTask.completion_time = 0;
-
-	//Add DD-Task to Active Task List
-	//addToActiveList(newTask);
-	//addToList(activeList, newTask);
-
-	//Sort list by deadline
-	//sortByDeadline(activeList);
-
-	//Set priorities of User-Defined Tasks accordingly
-
-	//return newTask;
-
 
 }
 
 
-//TODO: make the function look nicer
-//Don't know if pass by reference will work for addToList and then sortByDeadline
-//void delete_dd_task(struct dd_task_list activeList, struct dd_task_list completedList, struct dd_task_list overdueList, uint32_t task_id) {
 void delete_dd_task()  {
-
-//	dd_task completedTask;
-//	int time = xTaskGetTickCount();
-//
-//	//Assign completion time to newly-completed DD-Task
-//	struct dd_task_list node = activeList;
-//	while(node.task.task_id != task_id) {
-//		node = *node.next_task;
-//	}
-//	node.task.completion_time = time;
-//	completedTask = node.task;
-//
-//	node = activeList;
-//	while(node.next_task->task.task_id != task_id) {
-//		node = *node.next_task;
-//	}
-//	node.next_task = node.next_task->next_task;
-//
-//	if(completedTask.absolute_deadline > time) {
-//		//Remove DD-Task from Active Task List and add to Completed Task List
-//
-//		addToList(completedList, completedTask);
-//	} else {
-//
-//		addToList(overdueList, completedTask);
-//	}
 
 	struct taskMessage msg;
 	msg.message = "delete";
@@ -421,10 +370,7 @@ void delete_dd_task()  {
 
 	vTaskResume(dds_task);
 	vTaskSuspend(NULL);
-	//Sort Active Task List by deadline
-	//sortByDeadline(completedList);
 
-	//Set priorities of the User-Defined Tasks accordingly
 
 }
 
@@ -576,14 +522,6 @@ void monitorTask(void) {
 
 }
 
-void bench1task1() {
-
-	while(1) {
-		printf("bench1 task1 executing\n");
-
-		delete_dd_task();
-	}
-}
 
 
 void vApplicationMallocFailedHook( void )
