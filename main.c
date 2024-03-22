@@ -207,6 +207,8 @@ void dd_scheduler(void *pvParameters) {
 				struct dd_task_list overdueTasks = get_overdue_dd_task_list();
 
 			}
+		} else {
+			vTaskSuspend(NULL);
 		}
 
 	}
