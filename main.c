@@ -498,7 +498,7 @@ void addToList(struct dd_task_list list, dd_task task) {
 }
 
 
-void ddTaskGenerator(void *pvParameters) {
+void ddTaskGenerator1(void *pvParameters) {
 	dd_task_parameters *taskParams = (dd_task_parameters*) pvParameters;
 
 	for(;;){
@@ -506,8 +506,32 @@ void ddTaskGenerator(void *pvParameters) {
 		create_dd_task(taskParams[0].type, taskParams[0].task_id, taskParams[0].period, taskParams[0].execution_time);
 	}
 	//delay the task generator task for the period of task?
+	vTaskDelay(pdMS_TO_TICKS(taskParams[0].period));
 }
 
+
+void ddTaskGenerator2(void *pvParameters) {
+	dd_task_parameters *taskParams = (dd_task_parameters*) pvParameters;
+
+	for(;;){
+		// call create_dd_task and pass task parameters
+		create_dd_task(taskParams[1].type, taskParams[1].task_id, taskParams[1].period, taskParams[01].execution_time);
+	}
+	//delay the task generator task for the period of task?
+	vTaskDelay(pdMS_TO_TICKS(taskParams[1].period));
+}
+
+
+void ddTaskGenerator3(void *pvParameters) {
+	dd_task_parameters *taskParams = (dd_task_parameters*) pvParameters;
+
+	for(;;){
+		// call create_dd_task and pass task parameters
+		create_dd_task(taskParams[2].type, taskParams[2].task_id, taskParams[2].period, taskParams[2].execution_time);
+	}
+	//delay the task generator task for the period of task?
+	vTaskDelay(pdMS_TO_TICKS(taskParams[2].period));
+}
 
 /**
  *
