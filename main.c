@@ -499,11 +499,11 @@ void addToList(struct dd_task_list list, dd_task task) {
 
 
 void ddTaskGenerator(void *pvParameters) {
-	dd_task_parameters *dd_task_parameters = (dd_task_parameters*) pvParameters;
+	dd_task_parameters *taskParams = (dd_task_parameters*) pvParameters;
 
 	for(;;){
 		// call create_dd_task and pass task parameters
-		create_dd_task(task_parameters[0].type, task_parameters[0].task_id, task_parameters[0].period, task_parameters[0].execution_time);
+		create_dd_task(taskParams[0].type, taskParams[0].task_id, taskParams[0].period, taskParams[0].execution_time);
 	}
 	//delay the task generator task for the period of task?
 }
@@ -518,8 +518,43 @@ void ddTaskGenerator(void *pvParameters) {
  *
  * Collects information from DDS using get_active_dd_task_list,get_complete_dd_task_list, and get_overdue_dd_task_list
  */
-void monitorTask(void) {
+void monitorTask(void *pvParameters) {
+	struct dd_task_list activeTasks, completedTasks, overdueTasks;
 
+    for(;;) {
+        // Request and receive the lists from the DDS
+        activeTasks = get_active_dd_task_list();
+        completedTasks = get_complete_dd_task_list();
+        overdueTasks = get_overdue_dd_task_list();
+
+        int activeCount = 0, completedCount = 0, overdueCount = 0;
+        struct dd_task_list *current;
+
+        // Count active tasks
+        current = &activeTasks;
+        while(current != NULL && current->task.t_handle != NULL) {
+            activeCount++;
+            current = current->next_task;
+        }
+
+        // Count completed tasks
+        current = &completedTasks;
+        while(current != NULL && current->task.t_handle != NULL) {
+            completedCount++;
+            current = current->next_task;
+        }
+
+        // Count overdue tasks
+        current = &overdueTasks;
+        while(current != NULL && current->task.t_handle != NULL) {
+            overdueCount++;
+            current = current->next_task;
+        }
+
+        printf("Active Tasks: %d, Completed Tasks: %d, Overdue Tasks: %d\n", activeCount, completedCount, overdueCount);
+
+        vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second delay
+    }
 }
 
 
