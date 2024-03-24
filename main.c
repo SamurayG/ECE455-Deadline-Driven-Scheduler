@@ -129,7 +129,7 @@ int main(void)
     task3_timer = xTimerCreate("timer3", 1, pdFALSE, (void *)0, callback_Task_Generator_3);
 
     xTaskCreate(DD_Task_Scheduler, "Scheduler", configMINIMAL_STACK_SIZE, NULL, 4, NULL);
-    xTaskCreate(DD_Task_Monitor, "Monitor", configMINIMAL_STACK_SIZE, NULL, MONITOR_PRIORITY, NULL);
+//    xTaskCreate(DD_Task_Monitor, "Monitor", configMINIMAL_STACK_SIZE, NULL, MONITOR_PRIORITY, NULL);
 
     xTimerStart(task1_timer, TASK_1_PERIOD);//0
     xTimerStart(task2_timer, TASK_2_PERIOD);//0
@@ -190,18 +190,19 @@ void create_dd_task(TaskHandle_t t_handle, task_type type, uint32_t task_id, uin
 void complete_dd_task(uint32_t task_id)
 {
     dd_task task;
-
+//    printf("Task %d completed.\n", task_id);
     Message message;
     message.message_type = COMPLETE_TASK;
     message.task_id = task_id;
     if (xQueueSend(message_queue, &message, 500))
     {
-        // printf("message sent.\n");
+//         printf("message sent.\n");
     }
 
     if (xQueueReceive(task_return_queue, &task, portMAX_DELAY))
     {
         vTaskDelete(task.t_handle);
+
     }
 }
 
@@ -286,7 +287,11 @@ static void Task1(void *pvParameters)
             // if tick has updated, update exec time
             prev_t = current_t;
             exec_time--;
+            if (exec_time == 1){
+            	printf("here\n");
+            }
         }
+
     }
     complete_dd_task(1);
 
@@ -500,6 +505,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             new_task->task = message.task;
 //            if (new_task->task.task_id = 1){
             new_task->task.release_time = xTaskGetTickCount(); // current ticks since scheduler start
+            printf("Task %d is released.\n", new_task->task.task_id);
 //            }
             // Add new task to list
             // if list is empty, make new element the head
@@ -588,7 +594,7 @@ static void DD_Task_Scheduler(void *pvParameters)
 
             if (xQueueSend(task_return_queue, &new_completed_task->task, 500))
             {
-                // printf("task to be deleted sent to queue.\n");
+//                 printf("task to be deleted sent to queue.\n");
             }
 
             // adding task to completed task list
@@ -650,6 +656,8 @@ static void callback_Task_Generator_1(TimerHandle_t pxTimer)
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+//    printf("Task 1 created\n");
+    // reset and restart timer
     xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_1_PERIOD) ,0 );
     xTimerStart(task1_timer, 0);
 }
@@ -665,6 +673,8 @@ static void callback_Task_Generator_2(TimerHandle_t pxTimer)
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+//    printf("Task 2 created\n");
+    // reset and restart timer
     xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_2_PERIOD) ,0 );
     xTimerStart(task2_timer, 0);
 }
@@ -680,6 +690,8 @@ static void callback_Task_Generator_3(TimerHandle_t pxTimer)
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+//    printf("Task 3 created\n");
+    // reset and restart timer
     xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_3_PERIOD) ,0 );
     xTimerStart(task3_timer, 0);
 }
