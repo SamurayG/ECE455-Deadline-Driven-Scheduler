@@ -124,9 +124,9 @@ int main(void)
     overdue_tasks_queue = xQueueCreate(QUEUE_LENGTH, sizeof(dd_task_list));
     task_return_queue = xQueueCreate(QUEUE_LENGTH, sizeof(dd_task));
 
-    task1_timer = xTimerCreate("timer1", pdMS_TO_TICKS(TASK_1_PERIOD), pdFALSE, (void *)0, callback_Task_Generator_1);
-    task2_timer = xTimerCreate("timer2", pdMS_TO_TICKS(TASK_2_PERIOD), pdFALSE, (void *)0, callback_Task_Generator_2);
-    task3_timer = xTimerCreate("timer3", pdMS_TO_TICKS(TASK_3_PERIOD), pdFALSE, (void *)0, callback_Task_Generator_3);
+    task1_timer = xTimerCreate("timer1", 1, pdFALSE, (void *)0, callback_Task_Generator_1); //pdMS_TO_TICKS(TASK_1_PERIOD)
+    task2_timer = xTimerCreate("timer2", 1, pdFALSE, (void *)0, callback_Task_Generator_2);
+    task3_timer = xTimerCreate("timer3", 1, pdFALSE, (void *)0, callback_Task_Generator_3);
 
     xTaskCreate(DD_Task_Scheduler, "Scheduler", configMINIMAL_STACK_SIZE, NULL, 4, NULL);
     xTaskCreate(DD_Task_Monitor, "Monitor", configMINIMAL_STACK_SIZE, NULL, MONITOR_PRIORITY, NULL);
@@ -639,7 +639,7 @@ static void DD_Task_Scheduler(void *pvParameters)
 
 // Periodically generates new DD tasks
 // Calls internal create_dd_task function
-static void callback_Task_Generator_1()
+static void callback_Task_Generator_1(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_1_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -650,10 +650,11 @@ static void callback_Task_Generator_1()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+    xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_1_PERIOD) ,0 );
     xTimerStart(task1_timer, 0);
 }
 
-static void callback_Task_Generator_2()
+static void callback_Task_Generator_2(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_2_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -664,10 +665,11 @@ static void callback_Task_Generator_2()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+    xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_2_PERIOD) ,0 );
     xTimerStart(task2_timer, 0);
 }
 
-static void callback_Task_Generator_3()
+static void callback_Task_Generator_3(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_3_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -678,6 +680,7 @@ static void callback_Task_Generator_3()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+    xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_3_PERIOD) ,0 );
     xTimerStart(task3_timer, 0);
 }
 /*-----------------------------------------------------------*/
