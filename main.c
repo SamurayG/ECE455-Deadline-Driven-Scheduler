@@ -55,9 +55,9 @@
 
 static void prvSetupHardware(void);
 
-static void callback_Task_Generator_1();
-static void callback_Task_Generator_2();
-static void callback_Task_Generator_3();
+static void callback_Task_Generator_1(TimerHandle_t pxTimer);
+static void callback_Task_Generator_2(TimerHandle_t pxTimer);
+static void callback_Task_Generator_3(TimerHandle_t pxTimer);
 static void DD_Task_Scheduler(void *pvParameters);
 static void DD_Task_Monitor(void *pvParameters);
 static void Task1(void *pvParameters);
@@ -658,7 +658,7 @@ void addToSortedList(dd_task_list *list, dd_task_list *task) {
 
 // Periodically generates new DD tasks
 // Calls internal create_dd_task function
-static void callback_Task_Generator_1()
+static void callback_Task_Generator_1(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_1_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -669,10 +669,11 @@ static void callback_Task_Generator_1()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+	xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_1_PERIOD), 0);
     xTimerStart(task1_timer, 0);
 }
 
-static void callback_Task_Generator_2()
+static void callback_Task_Generator_2(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_2_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -683,10 +684,11 @@ static void callback_Task_Generator_2()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+	xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_2_PERIOD), 0);
     xTimerStart(task2_timer, 0);
 }
 
-static void callback_Task_Generator_3()
+static void callback_Task_Generator_3(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_3_PERIOD; // from test bench (period)
     TaskHandle_t t_handle;
@@ -697,6 +699,7 @@ static void callback_Task_Generator_3()
     vTaskSuspend(t_handle);
 
     create_dd_task(t_handle, type, task_id, absolute_deadline);
+	xTimerChangePeriod(pxTimer,pdMS_TO_TICKS(TASK_3_PERIOD), 0);
     xTimerStart(task3_timer, 0);
 }
 /*-----------------------------------------------------------*/
