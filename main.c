@@ -200,7 +200,7 @@ void complete_dd_task(uint32_t task_id)
         // printf("message sent.\n");
     }
 
-    if (xQueueReceive(task_return_queue, &task, portMAX_DELAY))
+    if (xQueueReceive(task_return_queue, &task, portMAX_DELAY) == pdPASS)
     {
         vTaskDelete(task.t_handle);
     }
@@ -217,7 +217,7 @@ dd_task_list *get_active_dd_task_list(void)
 
     while (1)
     {
-        if (xQueueReceive(active_tasks_queue, &head, 500))
+        if (xQueueReceive(active_tasks_queue, &head, 500) == pdPASS)
         {
             return head;
         }
@@ -234,7 +234,7 @@ dd_task_list *get_complete_dd_task_list(void)
     dd_task_list *head = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
     while (1)
     {
-        if (xQueueReceive(completed_tasks_queue, &head, 500))
+        if (xQueueReceive(completed_tasks_queue, &head, 500) == pdPASS)
         {
             return head;
         }
@@ -252,9 +252,10 @@ dd_task_list *get_overdue_dd_task_list(void)
     dd_task_list *head = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
     while (1)
     {
-        xQueueReceive(overdue_tasks_queue, &head, 500);
+        if(xQueueReceive(overdue_tasks_queue, &head, 500) == pdPASS) {
 
-        return head;
+        	return head;
+		}
 
     }
 }
