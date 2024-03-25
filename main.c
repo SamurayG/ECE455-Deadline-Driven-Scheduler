@@ -351,10 +351,10 @@ static void DD_Task_Monitor(void *pvParameters)
         printf("ACTIVE TASKS:\n");
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
+//            if (PRINT_TASKS)
+//            {
                 print_task(current);
-            }
+//            }
             num_active++;
             current = current->next_task;
         }
@@ -367,10 +367,10 @@ static void DD_Task_Monitor(void *pvParameters)
 
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
+//            if (PRINT_TASKS)
+//            {
                 print_task(current);
-            }
+//            }
             num_complete++;
             current = current->next_task;
         }
@@ -383,10 +383,10 @@ static void DD_Task_Monitor(void *pvParameters)
         // running one too many times, printing garbage
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
+//            if (PRINT_TASKS)
+//            {
                 print_task(current);
-            }
+//            }
             num_overdue++;
             current = current->next_task;
         }
@@ -767,3 +767,4 @@ static void prvSetupHardware(void)
     /* TODO: Setup the clocks, etc. here, if they were not configured before
     main() was called. */
 }
+
