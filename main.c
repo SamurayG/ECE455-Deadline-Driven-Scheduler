@@ -314,7 +314,14 @@ void addToSortedList(dd_task_list *list, dd_task_list *task) {
 		while(node->next_task != NULL && (node->task.absolute_deadline < newTask->task.absolute_deadline)) {
 			node = node->next_task;
 		}
-		node->next_task = newTask;
+
+        if(node == list) {
+            vTaskSuspend(node->task.t_handle);
+            newTask->new_task = node;
+        } else {
+            newTask->new_task = node->next_task->new_task;
+		    node->next_task = newTask;
+        }
 	}
 
 }
@@ -632,61 +639,86 @@ static void DD_Task_Scheduler(void *pvParameters)
             current = active_tasks_head;
             prev = active_tasks_head;
             dd_task_list *new_completed_task = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
-            while (current != NULL)
-            {
-                if (message.task_id == current->task.task_id)
-                {
-                    new_completed_task->task = current->task;
-                    new_completed_task->task.completion_time = xTaskGetTickCount();
-                    // remove from active list
-                    if (prev == current)
-                    {
-                        // current is the head of the list
-                        active_tasks_head = current->next_task;
-                    }
-                    else if (current->next_task == NULL)
-                    {
-                        // current is last in list
-                        current = NULL;
-                    }
-                    else
-                    {
-                        // current is not last in list
-                        prev->next_task = current->next_task;
-                    }
-                    break;
-                }
-                prev = current;
-                current = current->next_task;
-//                printf("Task %d completed.\n",  current->task.task_id);
+
+            new_completed_task->task = active_tasks_head->task;
+            new_completed_task->completion_time = xTaskGetTickCount();
+
+            //remove task from active_tasks_head (head node)
+            if(active_tasks_head->next_task != NULL) {
+                active_tasks_head = active_tasks_head->next_task;
+                vTaskResume(active_tasks_head->task.t_handle);
+            } else {
+                active_tasks_head =  NULL;
             }
 
-            // if there is a task to work on, start it
-            if (active_tasks_head != NULL)
-            {
-                vTaskResume(active_tasks_head->task.t_handle);
-            }
+            addToList(completed_tasks_head, new_completed_task);
+            
+//             if (active_tasks_head != NULL)
+//             {
+//                 vTaskResume(active_tasks_head->task.t_handle);
+//             }
 
             if (xQueueSend(task_return_queue, &new_completed_task->task, 500))
             {
 //                 printf("task to be deleted sent to queue.\n");
             }
+//             while (current != NULL)
+//             {
+//                 if (message.task_id == current->task.task_id)
+//                 {
+//                     new_completed_task->task = current->task;
+//                     new_completed_task->task.completion_time = xTaskGetTickCount();
+//                     // remove from active list
+//                     if (prev == current)
+//                     {
+//                         // current is the head of the list
+//                         active_tasks_head = current->next_task;
+//                     }
+//                     else if (current->next_task == NULL)
+//                     {
+//                         // current is last in list
+//                         current = NULL;
+//                     }
+//                     else
+//                     {
+//                         // current is not last in list
+//                         prev->next_task = current->next_task;
+//                     }
+//                     break;
+//                 }
+//                 prev = current;
+//                 current = current->next_task;
+// //                printf("Task %d completed.\n",  current->task.task_id);
+//             }
 
-            // adding task to completed task list
-            new_completed_task->next_task = NULL;
-            current = completed_tasks_head;
-            if (completed_tasks_head == NULL)
-            {
-                completed_tasks_head = new_completed_task;
-            }
-            else
-            {
-                while (current->next_task != NULL)
-                {
-                    current = current->next_task;
-                }
-                current->next_task = new_completed_task;
-            }
+//             // if there is a task to work on, start it
+//             if (active_tasks_head != NULL)
+//             {
+//                 vTaskResume(active_tasks_head->task.t_handle);
+//             }
+
+//             if (xQueueSend(task_return_queue, &new_completed_task->task, 500))
+//             {
+// //                 printf("task to be deleted sent to queue.\n");
+//             }
+
+//             // adding task to completed task list
+//             new_completed_task->next_task = NULL;
+//             current = completed_tasks_head;
+//             if (completed_tasks_head == NULL)
+//             {
+//                 completed_tasks_head = new_completed_task;
+//             }
+//             else
+//             {
+//                 while (current->next_task != NULL)
+//                 {
+//                     current = current->next_task;
+//                 }
+//                 current->next_task = new_completed_task;
+//             }
+
+            
 
             active_size--;
             completed_size++;
