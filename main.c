@@ -317,9 +317,9 @@ void addToSortedList(dd_task_list *list, dd_task_list *task) {
 
         if(node == list) {
             vTaskSuspend(node->task.t_handle);
-            newTask->new_task = node;
+            newTask->next_task = node;
         } else {
-            newTask->new_task = node->next_task->new_task;
+            newTask->next_task = node->next_task->next_task;
 		    node->next_task = newTask;
         }
 	}
@@ -641,7 +641,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             dd_task_list *new_completed_task = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
 
             new_completed_task->task = active_tasks_head->task;
-            new_completed_task->completion_time = xTaskGetTickCount();
+            new_completed_task->task.completion_time = xTaskGetTickCount();
 
             //remove task from active_tasks_head (head node)
             if(active_tasks_head->next_task != NULL) {
@@ -652,7 +652,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             }
 
             addToList(completed_tasks_head, new_completed_task);
-            
+
 //             if (active_tasks_head != NULL)
 //             {
 //                 vTaskResume(active_tasks_head->task.t_handle);
@@ -718,7 +718,7 @@ static void DD_Task_Scheduler(void *pvParameters)
 //                 current->next_task = new_completed_task;
 //             }
 
-            
+
 
             active_size--;
             completed_size++;
