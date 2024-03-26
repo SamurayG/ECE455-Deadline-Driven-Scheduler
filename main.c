@@ -194,7 +194,7 @@ void create_dd_task(TaskHandle_t t_handle, task_type type, uint32_t task_id, uin
 void complete_dd_task(uint32_t task_id)
 {
     dd_task task;
-    printf("Task %d completed.\n", task_id);
+//    printf("Task %d completed.\n", task_id);
     Message message;
     message.message_type = COMPLETE_TASK;
     message.msg = "complete";
@@ -531,6 +531,7 @@ static void DD_Task_Scheduler(void *pvParameters)
 				// if there is a task to work on, start it
 				if (active_tasks_head != NULL)
 				{
+					printf("Resume!\n");
 					vTaskResume(active_tasks_head->task.t_handle);
 				}
 
@@ -625,6 +626,8 @@ static void DD_Task_Scheduler(void *pvParameters)
            // break;
         } else if(strcmp(message.msg, "complete") == 0) {
         //case COMPLETE_TASK:
+
+        	printf("Task %d completed.\n",  current->task.task_id);
             // removing task from active task list
             current = active_tasks_head;
             prev = active_tasks_head;
@@ -655,6 +658,7 @@ static void DD_Task_Scheduler(void *pvParameters)
                 }
                 prev = current;
                 current = current->next_task;
+//                printf("Task %d completed.\n",  current->task.task_id);
             }
 
             // if there is a task to work on, start it
