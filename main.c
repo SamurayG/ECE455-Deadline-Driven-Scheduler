@@ -601,9 +601,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             	// resume task
             	vTaskResume(active_tasks_head->task.t_handle);
             }
-           // break;
         } else if(strcmp(message.msg, "complete") == 0) {
-        //case COMPLETE_TASK:
 
         	printf("Task %d completed.\n",  current->task.task_id);
             // removing task from active task list
