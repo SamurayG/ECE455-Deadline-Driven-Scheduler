@@ -11,7 +11,6 @@
 #include "../FreeRTOS_Source/include/semphr.h"
 #include "../FreeRTOS_Source/include/task.h"
 #include "../FreeRTOS_Source/include/timers.h"
-//#include "../FreeRTOS_Source/portable/MemMang/heap_4.c"
 
 #define QUEUE_LENGTH 10
 #define CREATE_TASK 0
@@ -27,6 +26,7 @@
 #define TASK_1_PERIOD 500
 #define TASK_2_PERIOD 500
 #define TASK_3_PERIOD 750
+int expected[17] = {0,95,95,95,245,495,500,500,595,650,750,1000,1000,1000,1095,1150,1500};
 
 // Test Bench #2
 //#define TASK_1_EXEC_TIME 95
@@ -35,6 +35,7 @@
 //#define TASK_1_PERIOD 250
 //#define TASK_2_PERIOD 500
 //#define TASK_3_PERIOD 750
+//int expected[17] = {0,0,0,95,245,250,495,500,585,750,845,1000,1000,1095,1150,1250,1345,1500};
 
 // Test Bench #3
 //#define TASK_1_EXEC_TIME 100
@@ -43,13 +44,13 @@
 //#define TASK_1_PERIOD 500
 //#define TASK_2_PERIOD 500
 //#define TASK_3_PERIOD 500
-
+//int expected[9] = {0,0,100,100,300,300,500,500,500};
 
 #define SCHEDULER_PRIORITY (configMAX_PRIORITIES)
 #define MONITOR_PRIORITY (configMAX_PRIORITIES - 1)
 #define DEFAULT_PRIORITY 1
 
-#define PRINT_TASKS 1
+
 
 /*-----------------------------------------------------------*/
 
@@ -165,10 +166,6 @@ void print_task(dd_task_list *dd_task)
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////
-/* Scheduler internal functions */
-/* These functions send messages to the queue that are read by the scheduler*/
-/////////////////////////////////////////////////////////////////////////////////////////
 
 void create_dd_task(TaskHandle_t t_handle, task_type type, uint32_t task_id, uint32_t absolute_deadline)
 {
@@ -185,10 +182,10 @@ void create_dd_task(TaskHandle_t t_handle, task_type type, uint32_t task_id, uin
     message.msg = "create";
     message.task = task;
 
-    if (xQueueSend(message_queue, &message, 0))
-    { // send message to queue
-        // printf("message sent.\n");
-    }
+    xQueueSend(message_queue, &message, 0);
+
+//    TickType_t current_t = xTaskGetTickCount();
+//    printf("Task %d is created at %d.\n", task.task_id, current_t);
 }
 
 void complete_dd_task(uint32_t task_id)
@@ -199,16 +196,12 @@ void complete_dd_task(uint32_t task_id)
     message.message_type = COMPLETE_TASK;
     message.msg = "complete";
     message.task_id = task_id;
-    if (xQueueSend(message_queue, &message, 500))
-    {
-//         printf("message sent.\n");
-    }
+    xQueueSend(message_queue, &message, 500);
+
 
     if (xQueueReceive(task_return_queue, &task, portMAX_DELAY) == pdPASS)
     {
         vTaskDelete(task.t_handle);
-
-
     }
 }
 
@@ -243,10 +236,8 @@ dd_task_list *get_complete_dd_task_list(void)
     Message message;
     message.message_type = GET_COMPLETED_TASKS;
     message.msg = "completedList";
-    if (xQueueSend(message_queue, &message, 500))
-    {
-        // printf("message sent.\n");
-    }
+    xQueueSend(message_queue, &message, 500);
+
 
     dd_task_list *head = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
     while (1)
@@ -263,10 +254,7 @@ dd_task_list *get_overdue_dd_task_list(void)
     Message message;
     message.message_type = GET_OVERDUE_TASKS;
     message.msg = "overdueList";
-    if (xQueueSend(message_queue, &message, 500))
-    {
-        // printf("message sent.\n");
-    }
+    xQueueSend(message_queue, &message, 500);
 
     dd_task_list *head = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
     while (1)
@@ -320,9 +308,6 @@ void addToSortedList(dd_task_list *list, dd_task_list *task) {
 }
 
 
-/////////////////////////////////////////////////////////////////////////////////////////
-/* F tasks */
-/////////////////////////////////////////////////////////////////////////////////////////
 
 // User defined DD task
 static void Task1(void *pvParameters)
@@ -419,10 +404,9 @@ static void DD_Task_Monitor(void *pvParameters)
         printf("ACTIVE TASKS:\n");
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
-                print_task(current);
-            }
+
+            print_task(current);
+
             num_active++;
             current = current->next_task;
         }
@@ -435,10 +419,9 @@ static void DD_Task_Monitor(void *pvParameters)
 
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
-                print_task(current);
-            }
+
+            print_task(current);
+
             num_complete++;
             current = current->next_task;
         }
@@ -451,16 +434,15 @@ static void DD_Task_Monitor(void *pvParameters)
         // running one too many times, printing garbage
         while (current != NULL)
         {
-            if (PRINT_TASKS)
-            {
-                print_task(current);
-            }
+
+            print_task(current);
+
             num_overdue++;
             current = current->next_task;
         }
         printf("Number of overdue tasks: %d\n\n", num_overdue);
 
-        vTaskDelay(500);
+        vTaskDelay(1000);
     }
 }
 
@@ -477,6 +459,8 @@ static void DD_Task_Scheduler(void *pvParameters)
     uint32_t active_size = 0;
     uint32_t completed_size = 0;
     uint32_t overdue_size = 0;
+
+    int event = 0;
 
     while (1)
     {
@@ -496,30 +480,11 @@ static void DD_Task_Scheduler(void *pvParameters)
             {
                 // TASK IS OVERDUE
 //                vTaskDelete(current->task.t_handle);
-                dd_task_list *new_overdue_task = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
+//                printf("overdue\n");
+
+            	dd_task_list *new_overdue_task = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
 
                 new_overdue_task->task = current->task;
-//
-//                if (prev == current)
-//                {
-//                    // current is the head of the list
-//                    active_tasks_head = current->next_task;
-//                    // free(current);
-//                }
-//                else if (current->next_task == NULL)
-//                {
-//                    // current is last in list
-//                    current = NULL;
-//                    // free(current);
-//                }
-//                else
-//                {
-//                    // current is not last in list
-//                    prev->next_task = current->next_task;
-//                    // free(current);
-//                }
-
-//
 
                 if(active_tasks_head->next_task == NULL) {
                 	active_tasks_head = NULL;
@@ -536,33 +501,15 @@ static void DD_Task_Scheduler(void *pvParameters)
 				}
 
                 // adding task to overdue task list
-//                new_overdue_task->next_task = NULL;
-//                current = overdue_tasks_head;
-//                if (overdue_tasks_head == NULL)
-//                {
-//                    overdue_tasks_head = new_overdue_task;
-//                }
-//                else
-//                {
-//                    while (current->next_task != NULL)
-//                    {
-//                        current = current->next_task;
-//                    }
-//                    current->next_task = new_overdue_task;
-//                }
-				addToList(overdue_tasks_head, new_overdue_task);
 
-				//addToList(overdue_tasks-head, new_overdue_task;)
+				addToList(overdue_tasks_head, new_overdue_task);
 
                 active_size--;
                 overdue_size++;
             }
         }
 
-//        switch (message.message_type)
-//        {
-//
-//        case CREATE_TASK:
+
         if(strcmp(message.msg, "create") == 0) {
             current = active_tasks_head;
             dd_task_list *new_task = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
@@ -570,13 +517,15 @@ static void DD_Task_Scheduler(void *pvParameters)
             new_task->task = message.task;
 //            if (new_task->task.task_id = 1){
             new_task->task.release_time = xTaskGetTickCount(); // current ticks since scheduler start
-            printf("Task %d is released.\n", new_task->task.task_id);
+
+//            TickType_t current_t = xTaskGetTickCount();
+//            printf("Task %d is created at %d.\n", new_task->task.task_id, current_t);
 //            }
             // Add new task to list
             // if list is empty, make new element the head
             if (active_tasks_head == NULL)
             {
-            	printf("active_tasks_head is null ======================================================\n");
+//            	printf("active_tasks_head is null ======================================================\n");
                 active_tasks_head = (dd_task_list *)pvPortMalloc(sizeof(dd_task_list));
                 active_tasks_head->task = new_task->task;
                 active_tasks_head->next_task = NULL;
@@ -586,12 +535,12 @@ static void DD_Task_Scheduler(void *pvParameters)
             else
             {
                 // if task to be inserted has lower deadline than head of list, insert at the front
-            	printf("adding to active list======================================================\n");
+//            	printf("adding to active list======================================================\n");
                 if (message.task.absolute_deadline < current->task.absolute_deadline)
                 {
                     new_task->next_task = current;
-                    vTaskSuspend(active_tasks_head -> task.t_handle);
-                    printf("Task %d suspended\n", active_tasks_head->task.task_id);
+                    vTaskSuspend(current -> task.t_handle);
+                    printf("Task %d suspended\n", current->task.task_id);
                     active_tasks_head = new_task;
 
                 }
@@ -600,15 +549,8 @@ static void DD_Task_Scheduler(void *pvParameters)
 
 //                    // if task should not be inserted at start, loop through and find location
 //                    // while next node is not null and next new task deadline is less than current task deadline
-//                    while (current->next_task != NULL && (message.task.absolute_deadline > current->next_task->task.absolute_deadline))
-//                    { // A next_task exists
-//                        current = current->next_task;
-//                    }
-//                    // insert node in correct location
-//                    new_task->next_task = current->next_task;
-//                    current->next_task = new_task;
 
-                	printf("adding to sorted list======================================================\n");
+//                	printf("adding to sorted list======================================================\n");
                 	addToSortedList(active_tasks_head, new_task);
                 }
             }
@@ -622,12 +564,17 @@ static void DD_Task_Scheduler(void *pvParameters)
             	vTaskPrioritySet(active_tasks_head->task.t_handle, 4);
             	// resume task
             	vTaskResume(active_tasks_head->task.t_handle);
-            }
-           // break;
-        } else if(strcmp(message.msg, "complete") == 0) {
-        //case COMPLETE_TASK:
+            	    TickType_t current_t = xTaskGetTickCount();
+            	//    printf("Task %d is created at %d.\n", task.task_id, current_t);
 
-        	printf("Task %d completed.\n",  current->task.task_id);
+            	event++;
+            	printf("Task %d is released at %d. Expected time: %d \n", active_tasks_head->task.task_id, current_t, expected[event]);
+            }
+
+        } else if(strcmp(message.msg, "complete") == 0) {
+
+
+//        	printf("Task %d completed.\n",  current->task.task_id);
             // removing task from active task list
             current = active_tasks_head;
             prev = active_tasks_head;
@@ -664,6 +611,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             // if there is a task to work on, start it
             if (active_tasks_head != NULL)
             {
+            	printf("next task %ld starting\n", active_tasks_head->task.task_id);
                 vTaskResume(active_tasks_head->task.t_handle);
             }
 
@@ -673,6 +621,7 @@ static void DD_Task_Scheduler(void *pvParameters)
             }
 
             // adding task to completed task list
+//            printf("Task %d completed.\n",  current->task.task_id);
             new_completed_task->next_task = NULL;
             current = completed_tasks_head;
             if (completed_tasks_head == NULL)
@@ -691,9 +640,13 @@ static void DD_Task_Scheduler(void *pvParameters)
             active_size--;
             completed_size++;
 
-           // break;
+            TickType_t current_t = xTaskGetTickCount();
+            event++;
+            printf("Task %d completed at %d. Expected: %d\n",  new_completed_task->task.task_id, current_t, expected[event]);
+
+
         } else if(strcmp(message.msg, "activeList") == 0) {
-        //case GET_ACTIVE_TASKS:
+
             if (xQueueSend(active_tasks_queue, &active_tasks_head, 500))
             {
                 // printf("active list sent to queue.\n");
@@ -702,28 +655,27 @@ static void DD_Task_Scheduler(void *pvParameters)
             {
                 printf("Failure\n");
             }
-//            break;
-//        case GET_COMPLETED_TASKS:
+
+
         } else if(strcmp(message.msg, "completedList") == 0) {
             if (xQueueSend(completed_tasks_queue, &completed_tasks_head, 500))
             {
                 // printf("active list sent to queue.\n");
             }
-//            break;
-//        case GET_OVERDUE_TASKS:
+
+
         } else if(strcmp(message.msg, "overdueList") == 0) {
 
             if (xQueueSend(overdue_tasks_queue, &overdue_tasks_head, 500))
             {
                 // printf("active list sent to queue.\n");
             }
-            //break;
+
         }
     }
 }
 
-// Periodically generates new DD tasks
-// Calls internal create_dd_task function
+
 static void callback_Task_Generator_1(TimerHandle_t pxTimer)
 {
     uint32_t absolute_deadline = xTaskGetTickCount() + TASK_1_PERIOD; // from test bench (period)
